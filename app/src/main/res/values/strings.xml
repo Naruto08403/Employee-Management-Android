@@ -20,4 +20,6 @@
     <string name="error_invalid_email">Invalid email address</string>
     <string name="error_invalid_phone">Invalid phone number</string>
     <string name="error_invalid_salary">Invalid salary amount</string>
+    <string name="employee_deleted">Employee deleted</string>
+    <string name="undo">Undo</string>
 </resources> 

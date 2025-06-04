@@ -9,18 +9,25 @@ import com.example.employeemanagement.R
 import com.example.employeemanagement.data.Employee
 import com.example.employeemanagement.viewmodel.EmployeeViewModel
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.google.android.material.snackbar.Snackbar
 
 class MainActivity : AppCompatActivity() {
     private val viewModel: EmployeeViewModel by viewModels()
     private lateinit var adapter: EmployeeListAdapter
+    private lateinit var progressBar: android.widget.ProgressBar
+    private lateinit var emptyView: android.view.View
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        progressBar = findViewById(R.id.progressBar)
+        emptyView = findViewById(R.id.emptyView)
+
         setupRecyclerView()
         setupFab()
         observeEmployees()
+        observeErrorAndLoading()
     }
 
     private fun setupRecyclerView() {
@@ -46,6 +53,24 @@ class MainActivity : AppCompatActivity() {
     private fun observeEmployees() {
         viewModel.allEmployees.observe(this) { employees ->
             adapter.submitList(employees)
+            emptyView.visibility = if (employees.isNullOrEmpty()) android.view.View.VISIBLE else android.view.View.GONE
+        }
+    }
+
+    /**
+     * Observe error and loading states from ViewModel.
+     */
+    private fun observeErrorAndLoading() {
+        viewModel.errorMessage.observe(this) { errorMsg ->
+            errorMsg?.let {
+                val rootView = findViewById<android.view.View>(android.R.id.content)
+                Snackbar.make(rootView, it, Snackbar.LENGTH_LONG)
+                    .setAction("Dismiss") { viewModel.clearError() }
+                    .show()
+            }
+        }
+        viewModel.isLoading.observe(this) { isLoading ->
+            progressBar.visibility = if (isLoading == true) android.view.View.VISIBLE else android.view.View.GONE
         }
     }
 } 

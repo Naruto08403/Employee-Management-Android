@@ -9,6 +9,7 @@ import com.example.employeemanagement.data.Employee
 import com.example.employeemanagement.viewmodel.EmployeeViewModel
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.snackbar.Snackbar
 
 class AddEmployeeActivity : AppCompatActivity() {
     private val viewModel: EmployeeViewModel by viewModels()
@@ -19,13 +20,18 @@ class AddEmployeeActivity : AppCompatActivity() {
     private lateinit var addressEditText: TextInputEditText
     private lateinit var designationEditText: TextInputEditText
     private lateinit var salaryEditText: TextInputEditText
+    private lateinit var progressBar: android.widget.ProgressBar
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_add_employee)
 
+        progressBar = findViewById(R.id.progressBar)
+
         initializeViews()
         setupSaveButton()
+        observeErrorAndLoading()
+        setupClearErrorOnEdit()
     }
 
     private fun initializeViews() {
@@ -101,5 +107,36 @@ class AddEmployeeActivity : AppCompatActivity() {
         viewModel.insertEmployee(employee)
         Toast.makeText(this, "Employee added successfully", Toast.LENGTH_SHORT).show()
         finish()
+    }
+
+    /**
+     * Observe error and loading states from ViewModel.
+     */
+    private fun observeErrorAndLoading() {
+        viewModel.errorMessage.observe(this) { errorMsg ->
+            errorMsg?.let {
+                val rootView = findViewById<android.view.View>(android.R.id.content)
+                Snackbar.make(rootView, it, Snackbar.LENGTH_LONG)
+                    .setAction("Dismiss") { viewModel.clearError() }
+                    .show()
+            }
+        }
+        viewModel.isLoading.observe(this) { isLoading ->
+            progressBar.visibility = if (isLoading == true) android.view.View.VISIBLE else android.view.View.GONE
+        }
+    }
+
+    /**
+     * Clear error messages when user edits a field.
+     */
+    private fun setupClearErrorOnEdit() {
+        val clearErrorListener = TextWatcherAdapter { viewModel.clearError() }
+        firstNameEditText.addTextChangedListener(clearErrorListener)
+        lastNameEditText.addTextChangedListener(clearErrorListener)
+        emailEditText.addTextChangedListener(clearErrorListener)
+        phoneEditText.addTextChangedListener(clearErrorListener)
+        addressEditText.addTextChangedListener(clearErrorListener)
+        designationEditText.addTextChangedListener(clearErrorListener)
+        salaryEditText.addTextChangedListener(clearErrorListener)
     }
 } 

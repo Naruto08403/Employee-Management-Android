@@ -14,6 +14,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.google.android.material.snackbar.Snackbar
+import android.text.TextWatcher
 
 class EditEmployeeActivity : AppCompatActivity() {
     companion object {
@@ -29,14 +31,20 @@ class EditEmployeeActivity : AppCompatActivity() {
     private lateinit var designationEditText: TextInputEditText
     private lateinit var salaryEditText: TextInputEditText
     private var currentEmployee: Employee? = null
+    private var lastDeletedEmployee: Employee? = null
+    private lateinit var progressBar: android.widget.ProgressBar
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_add_employee)
 
+        progressBar = findViewById(R.id.progressBar)
+
         initializeViews()
         setupButtons()
         loadEmployeeData()
+        observeErrorAndLoading()
+        setupClearErrorOnEdit()
     }
 
     private fun initializeViews() {
@@ -73,7 +81,7 @@ class EditEmployeeActivity : AppCompatActivity() {
         }
 
         CoroutineScope(Dispatchers.IO).launch {
-            currentEmployee = viewModel.getEmployeeById(employeeId)
+            currentEmployee = viewModel.getEmployeeByIdDirect(employeeId)
             withContext(Dispatchers.Main) {
                 currentEmployee?.let { employee ->
                     firstNameEditText.setText(employee.firstName)
@@ -153,12 +161,61 @@ class EditEmployeeActivity : AppCompatActivity() {
             .setMessage(R.string.delete_confirmation)
             .setPositiveButton(R.string.yes) { _, _ ->
                 currentEmployee?.let { employee ->
+                    lastDeletedEmployee = employee
                     viewModel.deleteEmployee(employee)
+                    showUndoSnackbar()
                     Toast.makeText(this, "Employee deleted successfully", Toast.LENGTH_SHORT).show()
                     finish()
                 }
             }
             .setNegativeButton(R.string.no, null)
             .show()
+    }
+
+    /**
+     * Shows a Snackbar with Undo option after deleting an employee.
+     */
+    private fun showUndoSnackbar() {
+        // Find a suitable view for Snackbar (use root view)
+        val rootView = findViewById<android.view.View>(android.R.id.content)
+        Snackbar.make(rootView, R.string.employee_deleted, Snackbar.LENGTH_LONG)
+            .setAction(R.string.undo) {
+                lastDeletedEmployee?.let { employee ->
+                    viewModel.insertEmployee(employee)
+                    Toast.makeText(this, "Employee restored", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .show()
+    }
+
+    /**
+     * Observe error and loading states from ViewModel.
+     */
+    private fun observeErrorAndLoading() {
+        viewModel.errorMessage.observe(this) { errorMsg ->
+            errorMsg?.let {
+                val rootView = findViewById<android.view.View>(android.R.id.content)
+                Snackbar.make(rootView, it, Snackbar.LENGTH_LONG)
+                    .setAction("Dismiss") { viewModel.clearError() }
+                    .show()
+            }
+        }
+        viewModel.isLoading.observe(this) { isLoading ->
+            progressBar.visibility = if (isLoading == true) android.view.View.VISIBLE else android.view.View.GONE
+        }
+    }
+
+    /**
+     * Clear error messages when user edits a field.
+     */
+    private fun setupClearErrorOnEdit() {
+        val clearErrorListener = TextWatcherAdapter { viewModel.clearError() }
+        firstNameEditText.addTextChangedListener(clearErrorListener)
+        lastNameEditText.addTextChangedListener(clearErrorListener)
+        emailEditText.addTextChangedListener(clearErrorListener)
+        phoneEditText.addTextChangedListener(clearErrorListener)
+        addressEditText.addTextChangedListener(clearErrorListener)
+        designationEditText.addTextChangedListener(clearErrorListener)
+        salaryEditText.addTextChangedListener(clearErrorListener)
     }
 } 
